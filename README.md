@@ -1,6 +1,6 @@
 # Pi Agent Harness
 
-Always-on proactive AI agent for your home server. Connects to your OpenAI-compatible gateway, monitors Home Assistant and Paperless, and reaches out to you on WhatsApp when something needs attention.
+Always-on proactive AI agent for your home server. Connects to your OpenAI-compatible gateway, can monitor other tools and apps, and reaches out to you on WhatsApp when something needs attention.
 
 ## What this does
 
@@ -42,7 +42,7 @@ Add this service to `~/home-server/docker-compose.yml`:
     container_name: whatsapp-bridge
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "3002:3000"
     volumes:
       - whatsapp_sessions:/app/sessions
     environment:
@@ -66,7 +66,7 @@ docker compose logs -f whatsapp-bridge
 Then start a session — open this URL in your browser (replace the IP with your Pi's IP):
 
 ```
-http://<pi-ip>:3000/session/start/default
+http://<pi-ip>:3002/session/start/default
 ```
 
 Watch the logs — a QR code will appear. On your phone:

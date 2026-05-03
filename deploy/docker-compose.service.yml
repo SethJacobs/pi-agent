@@ -1,8 +1,26 @@
-# Add this service block to your home-server docker-compose.yml
+# Add both service blocks to your home-server docker-compose.yml
 # under the `services:` key.
+# Add pi_agent_data and whatsapp_sessions to the `volumes:` key at the bottom.
 #
-# It joins vpn_net so it can reach ai-gateway, homeassistant,
-# and paperless-webserver by their container names.
+# Port map (based on your existing stack):
+#   8787 → pi-agent-harness  (free)
+#   3002 → whatsapp-bridge   (3000 + 3001 are taken by homepage and open-webui)
+
+  whatsapp-bridge:
+    image: avoylenko/wwebjs-api:latest
+    container_name: whatsapp-bridge
+    restart: unless-stopped
+    ports:
+      - "3002:3000"
+    volumes:
+      - whatsapp_sessions:/app/sessions
+    environment:
+      - API_KEY=your_secret_token_here        # set this, copy value to WHATSAPP_TOKEN below
+      - BASE_WEBHOOK_URL=http://pi-agent-harness:8787/webhook/whatsapp
+      - DISABLED_CALLBACKS=onPresenceChanged,onGroupNotification
+      - ENABLE_LOCAL_CALLBACK_EXAMPLE=FALSE
+    networks:
+      - vpn_net
 
   pi-agent-harness:
     build:
@@ -14,11 +32,12 @@
       - ai-gateway
       - homeassistant
       - paperless-webserver
+      - whatsapp-bridge
     ports:
       - "8787:8787"
     volumes:
       - pi_agent_data:/app/data
-      # Mounts HEARTBEAT.md so you can edit it live without rebuilding
+      # Mount prompts so you can edit HEARTBEAT.md live without rebuilding
       - /home/pi/home-server/pi-agent-harness/prompts:/app/prompts:ro
     environment:
       - AGENT_NAME=HomeOps
@@ -38,9 +57,9 @@
       - PAPERLESS_BASE_URL=http://paperless-webserver:8000
       - PAPERLESS_TOKEN=       # get from Paperless UI → Settings → API Token
 
-      # WhatsApp bridge
+      # WhatsApp bridge — internal port is always 3000 regardless of host mapping
       - WHATSAPP_SEND_URL=http://whatsapp-bridge:3000/client/sendMessage/default
-      - WHATSAPP_TOKEN=        # must match API_KEY in whatsapp-bridge
+      - WHATSAPP_TOKEN=        # must match API_KEY in whatsapp-bridge above
       - WHATSAPP_DEFAULT_CHAT_ID=
       - WEBHOOK_SECRET=
 
@@ -51,9 +70,12 @@
       - HEARTBEAT_INTERVAL_SECONDS=1800
 
       - LOG_LEVEL=INFO
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
     networks:
       - vpn_net
     mem_limit: 128m
     cpus: "0.5"
+
+# Add to your volumes: block
+# volumes:
+#   pi_agent_data:
+#   whatsapp_sessions:
