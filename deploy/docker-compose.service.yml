@@ -1,0 +1,59 @@
+# Add this service block to your home-server docker-compose.yml
+# under the `services:` key.
+#
+# It joins vpn_net so it can reach ai-gateway, homeassistant,
+# and paperless-webserver by their container names.
+
+  pi-agent-harness:
+    build:
+      context: /home/pi/home-server/pi-agent-harness
+      dockerfile: deploy/Dockerfile
+    container_name: pi-agent-harness
+    restart: unless-stopped
+    depends_on:
+      - ai-gateway
+      - homeassistant
+      - paperless-webserver
+    ports:
+      - "8787:8787"
+    volumes:
+      - pi_agent_data:/app/data
+      # Mounts HEARTBEAT.md so you can edit it live without rebuilding
+      - /home/pi/home-server/pi-agent-harness/prompts:/app/prompts:ro
+    environment:
+      - AGENT_NAME=HomeOps
+      - SQLITE_PATH=/app/data/agent.db
+
+      # Points at the gateway container on the internal network
+      - ROUTER_BASE_URL=http://ai-gateway:8080
+      - ROUTER_CHAT_PATH=/v1/chat/completions
+      - ROUTER_API_KEY=        # set if GATEWAY_API_KEY is set in ai-gateway
+      - ROUTER_MODEL=openrouter/auto
+
+      # Home Assistant — internal container hostname
+      - HOME_ASSISTANT_BASE_URL=http://homeassistant:8123
+      - HOME_ASSISTANT_TOKEN=           # long-lived access token from HA profile page
+
+      # Paperless — internal container hostname
+      - PAPERLESS_BASE_URL=http://paperless-webserver:8000
+      - PAPERLESS_TOKEN=       # get from Paperless UI → Settings → API Token
+
+      # WhatsApp bridge
+      - WHATSAPP_SEND_URL=http://whatsapp-bridge:3000/client/sendMessage/default
+      - WHATSAPP_TOKEN=        # must match API_KEY in whatsapp-bridge
+      - WHATSAPP_DEFAULT_CHAT_ID=
+      - WEBHOOK_SECRET=
+
+      # Laundry entities from your existing setup
+      - WATCH_ENTITY_IDS=["binary_sensor.zt300866n_laundry_remote_status","binary_sensor.av931535g_laundry_remote_status","sensor.zt300866n_laundry_machine_state","sensor.av931535g_laundry_machine_state"]
+      - WATCHER_INTERVAL_SECONDS=60
+      - PAPERLESS_POLL_SECONDS=600
+      - HEARTBEAT_INTERVAL_SECONDS=1800
+
+      - LOG_LEVEL=INFO
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - vpn_net
+    mem_limit: 128m
+    cpus: "0.5"
